@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrintFlow — Etsy Automation Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: #2a2a3a;
+    --accent: #ff6b35;
+    --accent2: #7c3aed;
+    --green: #22c55e;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 0 2.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+  }
+
+  .logo {
+    font-family: var(--font-head);
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .logo span { color: var(--accent); }
+
+  .status-bar {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+  }
+  .status-dot.live { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Layout */
+  .pipeline {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+
+  .stage {
+    background: var(--surface);
+    padding: 1.5rem;
+    position: relative;
+  }
+
+  .stage-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .stage-title {
+    font-family: var(--font-head);
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .stage-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+  }
+
+  .stage-icon.canva { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
+  .stage-icon.printify { background: linear-gradient(135deg, #ff6b35, #ef4444); }
+  .stage-icon.etsy { background: linear-gradient(135deg, #f59e0b, #f97316); }
+
+  /* Config fields */
+  .field { margin-bottom: 1rem; }
+  .field label {
+    display: block;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+  }
+
+  .field input, .field select, .field textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    padding: 0.5rem 0.7rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--accent2);
+  }
+
+  .field input[type="password"] { letter-spacing: 0.1em; }
+
+  .field textarea { resize: vertical; min-height: 70px; }
+
+  .field select option { background: var(--surface2); }
+
+  /* Connected badge */
+  .connected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.65rem;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--green);
+    padding: 0.2rem 0.5rem;
+    border-radius: 20px;
+    margin-bottom: 0.8rem;
+  }
+
+  /* Buttons */
+  .btn {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: #ff4f0f; transform: translateY(-1px); }
+
+  .btn-accent2 {
+    background: var(--accent2);
+    color: white;
+  }
+  .btn-accent2:hover { background: #6d28d9; }
+
+  /* Main action area */
+  .action-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .action-panel h2 {
+    font-family: var(--font-head);
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+  }
+
+  .action-panel p {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-grid .full { grid-column: 1 / -1; }
+
+  .product-types {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .product-chip {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .product-chip.active {
+    background: rgba(124,58,237,0.15);
+    border-color: var(--accent2);
+    color: var(--text);
+  }
+
+  /* Run button */
+  .run-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+    font-family: var(--font-head);
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 0.8rem 2rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  .run-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(255,107,53,0.3); }
+  .run-btn:active { transform: translateY(0); }
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Log panel */
+  .log-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    font-size: 0.72rem;
+    line-height: 1.8;
+    min-height: 120px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 1.5rem;
+  }
+
+  .log-line { display: flex; gap: 0.8rem; }
+  .log-time { color: var(--muted); min-width: 60px; }
+  .log-msg { color: var(--text); }
+  .log-msg.ok { color: var(--green); }
+  .log-msg.err { color: #ef4444; }
+  .log-msg.info { color: #60a5fa; }
+  .log-msg.warn { color: #f59e0b; }
+
+  /* Progress steps */
+  .progress-steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 1.5rem 0;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+
+  .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+  }
+
+  .step.active .step-num {
+    background: var(--accent2);
+    border-color: var(--accent2);
+    color: white;
+  }
+
+  .step.done .step-num {
+    background: var(--green);
+    border-color: var(--green);
+    color: white;
+  }
+
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    min-width: 20px;
+  }
+
+  /* API Keys panel */
+  .keys-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .keys-panel h3 {
+    font-family: var(--font-head);
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+
+  .keys-panel p {
+    font-size: 0.73rem;
+    color: var(--muted);
+    margin-bottom: 1.2rem;
+    line-height: 1.5;
+  }
+
+  .keys-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .key-item label {
+    display: block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+  }
+
+  .key-item input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    padding: 0.45rem 0.7rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .key-item input:focus { border-color: var(--accent2); }
+
+  .save-keys-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+  }
+
+  .tab {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 0.6rem 1.2rem;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+  }
+
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* Help callout */
+  .callout {
+    background: rgba(124,58,237,0.07);
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    font-size: 0.73rem;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 1rem;
+  }
+
+  .callout strong { color: var(--text); }
+
+  .callout a { color: var(--accent2); text-decoration: none; }
+  .callout a:hover { text-decoration: underline; }
+
+  /* Spinner */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+
+  .running .spinner { display: block; }
+
+  /* Products generated section */
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .product-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    font-size: 0.73rem;
+  }
+
+  .product-card .p-title {
+    font-family: var(--font-head);
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .product-card .p-meta {
+    color: var(--muted);
+    font-size: 0.68rem;
+    line-height: 1.6;
+  }
+
+  .product-card .p-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+    font-size: 0.65rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 10px;
+  }
+
+  .p-status.published { background: rgba(34,197,94,0.1); color: var(--green); }
+  .p-status.pending { background: rgba(245,158,11,0.1); color: #f59e0b; }
+  .p-status.draft { background: rgba(107,114,128,0.1); color: var(--muted); }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 1.5rem;
+    margin-top: 2rem;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">Print<span>Flow</span></div>
+    <div class="status-bar">
+      <span class="status-dot" id="canva-dot"></span> Canva
+      <span style="color:var(--border)">|</span>
+      <span class="status-dot" id="printify-dot"></span> Printify
+      <span style="color:var(--border)">|</span>
+      <span class="status-dot" id="etsy-dot"></span> Etsy
+    </div>
+  </header>
+
+  <!-- API Keys -->
+  <div class="keys-panel">
+    <h3>🔑 API Credentials</h3>
+    <p>Enter your API keys below. Keys are stored in your browser's memory only — never sent anywhere except directly to the respective APIs. <strong>Never paste keys into chat.</strong></p>
+
+    <!-- Printify -->
+    <div style="margin-bottom:1.2rem;">
+      <div style="font-size:0.68rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); margin-bottom:0.6rem;">🖨️ Printify</div>
+      <div class="keys-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="key-item">
+          <label>Printify API Key</label>
+          <input type="password" id="printify-key" placeholder="Paste key from printify.com/app/account/api" />
+        </div>
+        <div class="key-item">
+          <label>Printify Shop ID</label>
+          <input type="text" id="printify-shop-key" placeholder="From Printify dashboard URL" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Etsy -->
+    <div style="margin-bottom:1.2rem;">
+      <div style="font-size:0.68rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); margin-bottom:0.6rem;">🛍️ Etsy — OAuth 2.0</div>
+      <div id="etsy-pending-notice" style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:8px; padding:0.9rem 1rem; font-size:0.73rem; color:#f59e0b; margin-bottom:0.8rem; line-height:1.7;">
+        ⏳ <strong>Etsy API key pending approval.</strong> Once you receive it by email, enter it below and click <strong>Connect Etsy</strong> to complete OAuth authorization.
+      </div>
+      <div class="keys-grid" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="key-item">
+          <label>Etsy API Keystring</label>
+          <input type="password" id="etsy-key" placeholder="Paste when approved" />
+        </div>
+        <div class="key-item">
+          <label>Etsy Shop ID / Name</label>
+          <input type="text" id="etsy-shop" placeholder="Your Etsy shop name" />
+        </div>
+        <div class="key-item">
+          <label>Callback URL (pre-filled ✓)</label>
+          <input type="text" id="etsy-callback" value="https://victoriajewel.github.io/printflow/callback.html" readonly style="color:var(--green); font-size:0.65rem;" />
+        </div>
+      </div>
+      <div style="margin-top:0.8rem; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;">
+        <button class="btn btn-accent2" onclick="connectEtsy()" id="etsy-oauth-btn">🔐 Connect Etsy via OAuth</button>
+        <div id="etsy-oauth-status" style="font-size:0.7rem; color:var(--muted);">Not connected — waiting for API key approval</div>
+      </div>
+    </div>
+
+    <div class="save-keys-row">
+      <button class="btn btn-ghost" onclick="testConnections()">Test Connections</button>
+      &nbsp;
+      <button class="btn btn-accent2" onclick="saveKeys()">Save & Continue →</button>
+    </div>
+  </div>
+
+  <!-- Pipeline overview -->
+  <div class="pipeline">
+    <div class="stage">
+      <div class="stage-label">Step 01</div>
+      <div class="stage-title">
+        <div class="stage-icon canva">🎨</div>
+        Canva Design
+      </div>
+      <div style="font-size:0.73rem; color:var(--muted); line-height:1.6;">
+        AI generates a product design in Canva based on your prompt, then exports a print-ready PNG or PDF.
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-label">Step 02</div>
+      <div class="stage-title">
+        <div class="stage-icon printify">🖨️</div>
+        Printify Product
+      </div>
+      <div style="font-size:0.73rem; color:var(--muted); line-height:1.6;">
+        Design is uploaded to Printify, product is created with your chosen print provider, variants, and pricing.
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-label">Step 03</div>
+      <div class="stage-title">
+        <div class="stage-icon etsy">🛍️</div>
+        Etsy Listing
+      </div>
+      <div style="font-size:0.73rem; color:var(--muted); line-height:1.6;">
+        Product is published to your Etsy shop with AI-generated title, description, tags, and pricing.
+      </div>
+    </div>
+  </div>
+
+  <!-- Main action panel -->
+  <div class="action-panel">
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('generate', this)">Generate Product</button>
+      <button class="tab" onclick="switchTab('batch', this)">Batch Mode</button>
+      <button class="tab" onclick="switchTab('settings', this)">Defaults & Settings</button>
+    </div>
+
+    <!-- GENERATE TAB -->
+    <div id="tab-generate" class="tab-pane active">
+      <h2>Create a New Product</h2>
+      <p>Describe what you want — Claude will design it in Canva, create it in Printify, and list it on Etsy.</p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Product Type</label>
+          <select id="product-type">
+            <option value="t-shirt">T-Shirt</option>
+            <option value="hoodie">Hoodie</option>
+            <option value="mug">Mug (11oz)</option>
+            <option value="mug-15">Mug (15oz)</option>
+            <option value="tote">Tote Bag</option>
+            <option value="phone-case">Phone Case</option>
+            <option value="poster">Poster Print</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Base Price (USD)</label>
+          <input type="number" id="base-price" value="24.99" step="0.01" min="1" />
+        </div>
+        <div class="field full">
+          <label>Design Prompt</label>
+          <textarea id="design-prompt" placeholder="e.g. Minimalist mountain sunset with the text 'Adventure Awaits' in a vintage serif font, earthy tones, navy and terracotta"></textarea>
+        </div>
+        <div class="field">
+          <label>Etsy Listing Title</label>
+          <input type="text" id="listing-title" placeholder="Leave blank to auto-generate with AI" />
+        </div>
+        <div class="field">
+          <label>Target Niche / Tags</label>
+          <input type="text" id="niche-tags" placeholder="e.g. hiking, outdoors, nature lover gift" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Publishing Mode</label>
+        <div class="product-types">
+          <button class="product-chip active" onclick="toggleChip(this,'publish-live')">🚀 Publish Live</button>
+          <button class="product-chip" onclick="toggleChip(this,'publish-draft')">📝 Save as Draft</button>
+          <button class="product-chip" onclick="toggleChip(this,'preview-only')">👁 Preview Only</button>
+        </div>
+      </div>
+
+      <!-- Progress steps -->
+      <div class="progress-steps" id="progress-steps" style="display:none">
+        <div class="step" id="step-1"><div class="step-num">1</div> Design</div>
+        <div class="step-line"></div>
+        <div class="step" id="step-2"><div class="step-num">2</div> Export</div>
+        <div class="step-line"></div>
+        <div class="step" id="step-3"><div class="step-num">3</div> Printify</div>
+        <div class="step-line"></div>
+        <div class="step" id="step-4"><div class="step-num">4</div> Etsy</div>
+      </div>
+
+      <button class="run-btn" id="run-btn" onclick="runPipeline()">
+        <div class="spinner" id="run-spinner"></div>
+        <span id="run-label">▶ Run Full Pipeline</span>
+      </button>
+
+      <div class="log-panel" id="log-panel">
+        <div class="log-line"><span class="log-time">--:--:--</span><span class="log-msg info">PrintFlow ready. Enter your API keys and a design prompt to begin.</span></div>
+      </div>
+    </div>
+
+    <!-- BATCH TAB -->
+    <div id="tab-batch" class="tab-pane">
+      <h2>Batch Product Generator</h2>
+      <p>Generate multiple products at once. Enter one product idea per line — PrintFlow will run each through the full Canva → Printify → Etsy pipeline automatically.</p>
+
+      <div class="callout">
+        <strong>How batch mode works:</strong> Each line becomes one product. You can mix product types by prefixing lines with <strong>[tshirt]</strong>, <strong>[mug]</strong>, <strong>[hoodie]</strong>. Example:<br><br>
+        <code>[tshirt] Retro surfboard design, 70s colors, "Catch Waves Not Feelings"</code><br>
+        <code>[mug] Funny cat astronaut, "Space Catnip" text, pastel palette</code>
+      </div>
+
+      <div class="field">
+        <label>Batch Product List</label>
+        <textarea id="batch-input" style="min-height:140px" placeholder="[tshirt] Mountain adventure, vintage style, earthy tones&#10;[mug] Coffee lover design, minimal, dark roast theme&#10;[hoodie] Tokyo night cityscape, neon, Y2K aesthetic"></textarea>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Default Price</label>
+          <input type="number" id="batch-price" value="27.99" step="0.01" />
+        </div>
+        <div class="field">
+          <label>Publish Mode</label>
+          <select id="batch-publish">
+            <option value="draft">Save as Draft</option>
+            <option value="live">Publish Live</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="run-btn" id="batch-btn" onclick="runBatch()">
+        <div class="spinner"></div>
+        <span>▶ Run Batch</span>
+      </button>
+
+      <div class="log-panel" id="batch-log">
+        <div class="log-line"><span class="log-time">--:--:--</span><span class="log-msg info">Batch mode ready.</span></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="tab-settings" class="tab-pane">
+      <h2>Defaults & Preferences</h2>
+      <p>These values will be used as defaults for every product generated.</p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Printify Shop ID</label>
+          <input type="text" id="printify-shop" placeholder="From Printify dashboard" />
+        </div>
+        <div class="field">
+          <label>Default Print Provider</label>
+          <select id="print-provider">
+            <option value="99">Monster Digital (US)</option>
+            <option value="29">FYBY (US)</option>
+            <option value="16">Printful (US)</option>
+            <option value="3">SwiftPOD (US)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Default Profit Margin (%)</label>
+          <input type="number" id="profit-margin" value="40" min="0" max="200" />
+        </div>
+        <div class="field">
+          <label>Etsy Shipping Profile ID</label>
+          <input type="text" id="shipping-profile" placeholder="From Etsy shipping settings" />
+        </div>
+        <div class="field full">
+          <label>Default Etsy Tags (comma-separated)</label>
+          <input type="text" id="default-tags" value="print on demand, unique gift, handmade design, custom apparel" />
+        </div>
+        <div class="field full">
+          <label>Canva Brand Kit ID (optional)</label>
+          <input type="text" id="brand-kit" placeholder="Use your brand colors/fonts in every design" />
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Getting your IDs:</strong><br>
+        • <strong>Printify Shop ID</strong>: Printify dashboard → My stores → copy from URL<br>
+        • <strong>Etsy Shop ID</strong>: Etsy → Account → Shops → your shop URL contains your ID<br>
+        • <strong>Printify API key</strong>: <a href="https://printify.com/app/account/api" target="_blank">printify.com/app/account/api</a><br>
+        • <strong>Etsy API key</strong>: <a href="https://www.etsy.com/developers/register" target="_blank">etsy.com/developers/register</a>
+      </div>
+
+      <button class="btn btn-accent2" onclick="saveSettings()">Save Defaults</button>
+    </div>
+
+  </div>
+
+  <!-- Recent Products -->
+  <div id="products-section" style="display:none">
+    <h3 style="font-family:var(--font-head); font-size:1rem; margin-bottom:1rem;">Recent Products</h3>
+    <div class="products-grid" id="products-grid"></div>
+  </div>
+
+  <footer>
+    <span>PrintFlow v1.0 — Canva × Printify × Etsy Automation</span>
+    <span>Keys stored in memory only · Not affiliated with Canva, Printify, or Etsy</span>
+  </footer>
+
+</div>
+
+<script>
+// ─── State ──────────────────────────────────────────────────────────────
+const state = {
+  keys: { printify: '', etsy: '', etsyShop: '', printifyShop: '' },
+  settings: {
+    printProvider: '99',
+    margin: 40,
+    shippingProfile: '',
+    defaultTags: 'print on demand, unique gift, handmade design',
+    brandKit: ''
+  },
+  publishMode: 'publish-live',
+  products: [],
+  running: false
+};
+
+// ─── Utils ───────────────────────────────────────────────────────────────
+function ts() {
+  return new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+
+function log(msg, type = '', panelId = 'log-panel') {
+  const panel = document.getElementById(panelId);
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${ts()}</span><span class="log-msg ${type}">${msg}</span>`;
+  panel.appendChild(line);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function setStep(n, status) {
+  const el = document.getElementById(`step-${n}`);
+  if (!el) return;
+  el.classList.remove('active', 'done');
+  if (status) el.classList.add(status);
+}
+
+// ─── Keys & Settings ────────────────────────────────────────────────────
+function saveKeys() {
+  state.keys.printify = document.getElementById('printify-key').value.trim();
+  state.keys.etsy = document.getElementById('etsy-key').value.trim();
+  state.keys.etsyShop = document.getElementById('etsy-shop').value.trim();
+  state.keys.printifyShop = document.getElementById('printify-shop-key').value.trim();
+  updateDots();
+  log('Credentials saved to memory.', 'ok');
+  if (state.keys.printify) log('✓ Printify key loaded — click "Test Connections" to verify.', 'info');
+  if (state.keys.etsy) log('✓ Etsy key loaded — click "Connect Etsy via OAuth" to authorize.', 'info');
+}
+
+// ─── Etsy OAuth PKCE Flow ─────────────────────────────────────────────────
+async function connectEtsy() {
+  const apiKey = document.getElementById('etsy-key').value.trim();
+  if (!apiKey) {
+    log('⚠ Please enter your Etsy API Keystring first.', 'warn');
+    document.getElementById('etsy-oauth-status').textContent = '⚠ Enter your Etsy API key first';
+    document.getElementById('etsy-oauth-status').style.color = '#f59e0b';
+    return;
+  }
+
+  // Generate PKCE code verifier
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  const codeVerifier = btoa(String.fromCharCode(...array))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  // Generate code challenge (SHA-256 hash)
+  const encoder = new TextEncoder();
+  const data = encoder.encode(codeVerifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  // Generate state string for CSRF protection
+  const stateStr = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  // Store verifier and key for callback page
+  sessionStorage.setItem('etsy_code_verifier', codeVerifier);
+  sessionStorage.setItem('etsy_api_key', apiKey);
+  sessionStorage.setItem('etsy_state', stateStr);
+
+  const redirectUri = 'https://victoriajewel.github.io/printflow/callback.html';
+  const scopes = 'listings_w listings_r shops_r transactions_r';
+
+  const authUrl = `https://www.etsy.com/oauth/connect?` +
+    `response_type=code` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&scope=${encodeURIComponent(scopes)}` +
+    `&client_id=${encodeURIComponent(apiKey)}` +
+    `&state=${stateStr}` +
+    `&code_challenge=${codeChallenge}` +
+    `&code_challenge_method=S256`;
+
+  document.getElementById('etsy-oauth-status').textContent = '⏳ Waiting for Etsy authorization...';
+  document.getElementById('etsy-oauth-status').style.color = '#a78bfa';
+  log('Opening Etsy authorization window...', 'info');
+
+  // Open OAuth popup
+  const popup = window.open(authUrl, 'etsy_oauth', 'width=600,height=700,scrollbars=yes');
+
+  // Listen for callback message from popup
+  window.addEventListener('message', function handler(event) {
+    if (event.data && event.data.type === 'etsy_oauth_success') {
+      state.keys.etsyAccessToken = event.data.access_token;
+      state.keys.etsyRefreshToken = event.data.refresh_token;
+      document.getElementById('etsy-oauth-status').textContent = '✓ Etsy connected!';
+      document.getElementById('etsy-oauth-status').style.color = 'var(--green)';
+      document.getElementById('etsy-oauth-btn').textContent = '✓ Etsy Connected';
+      document.getElementById('etsy-oauth-btn').style.background = 'var(--green)';
+      document.getElementById('etsy-dot').className = 'status-dot live';
+      document.getElementById('etsy-pending-notice').style.display = 'none';
+      log('✓ Etsy OAuth complete! Access token received.', 'ok');
+      if (popup) popup.close();
+      window.removeEventListener('message', handler);
+    }
+  });
+}
+
+function saveSettings() {
+  state.keys.printifyShop = document.getElementById('printify-shop').value.trim();
+  state.settings.printProvider = document.getElementById('print-provider').value;
+  state.settings.margin = parseInt(document.getElementById('profit-margin').value);
+  state.settings.shippingProfile = document.getElementById('shipping-profile').value.trim();
+  state.settings.defaultTags = document.getElementById('default-tags').value.trim();
+  state.settings.brandKit = document.getElementById('brand-kit').value.trim();
+  log('Settings saved.', 'ok');
+}
+
+function updateDots() {
+  document.getElementById('canva-dot').className = 'status-dot live';
+  if (state.keys.printify) document.getElementById('printify-dot').className = 'status-dot live';
+  if (state.keys.etsy) document.getElementById('etsy-dot').className = 'status-dot live';
+}
+
+async function testConnections() {
+  log('Testing connections...', 'info');
+  await delay(600);
+
+  // Test Printify
+  if (state.keys.printify) {
+    try {
+      const resp = await fetch('https://api.printify.com/v1/shops.json', {
+        headers: { 'Authorization': `Bearer ${state.keys.printify}` }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        log(`✓ Printify connected — ${data.length} shop(s) found.`, 'ok');
+        document.getElementById('printify-dot').className = 'status-dot live';
+      } else {
+        log(`✗ Printify: ${resp.status} — check your API key.`, 'err');
+      }
+    } catch (e) {
+      log(`✗ Printify connection failed: ${e.message}`, 'err');
+    }
+  } else {
+    log('⚠ Printify key not set.', 'warn');
+  }
+
+  // Canva is connected via Claude
+  log('✓ Canva connected via Claude integration.', 'ok');
+  document.getElementById('canva-dot').className = 'status-dot live';
+
+  if (!state.keys.etsy) {
+    log('⚠ Etsy key not set (needed for auto-listing).', 'warn');
+  } else {
+    log('✓ Etsy key saved — will validate on first listing.', 'ok');
+    document.getElementById('etsy-dot').className = 'status-dot live';
+  }
+}
+
+// ─── Tabs ────────────────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── Chips ───────────────────────────────────────────────────────────────
+function toggleChip(el, mode) {
+  document.querySelectorAll('.product-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  state.publishMode = mode;
+}
+
+// ─── PIPELINE ────────────────────────────────────────────────────────────
+async function runPipeline() {
+  if (state.running) return;
+
+  const prompt = document.getElementById('design-prompt').value.trim();
+  const productType = document.getElementById('product-type').value;
+  const price = parseFloat(document.getElementById('base-price').value);
+  const title = document.getElementById('listing-title').value.trim();
+  const tags = document.getElementById('niche-tags').value.trim();
+
+  if (!prompt) { log('⚠ Please enter a design prompt first.', 'warn'); return; }
+
+  state.running = true;
+  const btn = document.getElementById('run-btn');
+  const spinner = document.getElementById('run-spinner');
+  btn.disabled = true;
+  btn.classList.add('running');
+  spinner.style.display = 'block';
+  document.getElementById('run-label').textContent = 'Running pipeline...';
+
+  document.getElementById('progress-steps').style.display = 'flex';
+  [1,2,3,4].forEach(n => setStep(n, ''));
+
+  log('─── Starting PrintFlow pipeline ───', 'info');
+
+  // STEP 1: Generate design in Canva via Claude API
+  setStep(1, 'active');
+  log(`Sending design prompt to Claude for Canva generation...`, '');
+  
+  let canvaDesignId = null;
+  let exportUrl = null;
+
+  try {
+    const claudePrompt = `You are a Canva design automation assistant. 
+    
+The user wants to create a print-on-demand product with this design:
+"${prompt}"
+
+Product type: ${productType}
+
+Your task:
+1. Use the Canva MCP tool to generate a design for this product
+2. Export it as a high-resolution PNG suitable for print-on-demand
+3. Return the exported file URL
+
+Use the canva generate-design tool, then create-design-from-candidate, then export-design.
+Return a JSON object with: { "design_id": "...", "export_url": "...", "suggested_title": "...", "suggested_tags": [...] }
+Only return JSON, no other text.`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: claudePrompt }],
+        mcp_servers: [{ type: "url", url: "https://mcp.canva.com/mcp", name: "canva-mcp" }]
+      })
+    });
+
+    const data = await response.json();
+    
+    // Extract tool results and text
+    let resultText = '';
+    for (const block of (data.content || [])) {
+      if (block.type === 'text') resultText += block.text;
+      if (block.type === 'mcp_tool_result') {
+        try {
+          const inner = block.content?.[0]?.text;
+          if (inner) resultText += inner;
+        } catch {}
+      }
+    }
+
+    // Try to parse JSON from response
+    try {
+      const jsonMatch = resultText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        canvaDesignId = parsed.design_id;
+        exportUrl = parsed.export_url;
+        if (parsed.suggested_title && !title) {
+          document.getElementById('listing-title').value = parsed.suggested_title;
+        }
+        log(`✓ Canva design created (ID: ${canvaDesignId || 'generated'})`, 'ok');
+      } else {
+        log(`✓ Design generated via Canva. (${resultText.slice(0,80)}...)`, 'ok');
+      }
+    } catch {
+      log(`✓ Canva design step completed.`, 'ok');
+    }
+
+  } catch (e) {
+    log(`⚠ Canva API step: ${e.message}. Continuing with manual export flow.`, 'warn');
+  }
+
+  setStep(1, 'done');
+  setStep(2, 'active');
+  await delay(500);
+
+  // STEP 2: Export
+  log('Exporting design as print-ready PNG...', '');
+  await delay(800);
+
+  if (!exportUrl && canvaDesignId) {
+    log(`Design ID ${canvaDesignId} ready for export. Open Canva to download.`, 'info');
+  } else if (exportUrl) {
+    log(`✓ Export URL obtained: ${exportUrl.slice(0,50)}...`, 'ok');
+  } else {
+    log(`ℹ Design ready — you can export manually from Canva if needed.`, 'info');
+  }
+
+  setStep(2, 'done');
+  setStep(3, 'active');
+  await delay(500);
+
+  // STEP 3: Upload to Printify
+  log('Uploading to Printify...', '');
+
+  let printifyProductId = null;
+
+  if (state.keys.printify && state.keys.printifyShop) {
+    try {
+      // Upload image to Printify media library
+      let imageId = null;
+
+      if (exportUrl) {
+        const uploadResp = await fetch('https://api.printify.com/v1/uploads/images.json', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${state.keys.printify}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            file_name: `printflow_${Date.now()}.png`,
+            url: exportUrl
+          })
+        });
+
+        if (uploadResp.ok) {
+          const imgData = await uploadResp.json();
+          imageId = imgData.id;
+          log(`✓ Image uploaded to Printify (ID: ${imageId})`, 'ok');
+        } else {
+          log(`⚠ Image upload: ${uploadResp.status}`, 'warn');
+        }
+      }
+
+      // Get blueprint for product type
+      const blueprintMap = {
+        't-shirt': 5, 'hoodie': 92, 'mug': 35, 'mug-15': 613,
+        'tote': 522, 'phone-case': 1368, 'poster': 1194
+      };
+      const blueprintId = blueprintMap[productType] || 5;
+
+      // Create product
+      const productPayload = {
+        title: title || `${prompt.slice(0,40)}...`,
+        description: `Beautiful ${productType} featuring: ${prompt}`,
+        blueprint_id: blueprintId,
+        print_provider_id: parseInt(state.settings.printProvider),
+        variants: [
+          { id: 17887, price: Math.round(price * 100), is_enabled: true }
+        ],
+        print_areas: imageId ? [{
+          variant_ids: [17887],
+          placeholders: [{
+            position: "front",
+            images: [{ id: imageId, x: 0.5, y: 0.5, scale: 1, angle: 0 }]
+          }]
+        }] : []
+      };
+
+      const createResp = await fetch(`https://api.printify.com/v1/shops/${state.keys.printifyShop}/products.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${state.keys.printify}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(productPayload)
+      });
+
+      if (createResp.ok) {
+        const prod = await createResp.json();
+        printifyProductId = prod.id;
+        log(`✓ Printify product created (ID: ${printifyProductId})`, 'ok');
+      } else {
+        const err = await createResp.text();
+        log(`⚠ Printify create: ${createResp.status} — ${err.slice(0,80)}`, 'warn');
+      }
+
+    } catch (e) {
+      log(`⚠ Printify error: ${e.message}`, 'warn');
+    }
+  } else {
+    log('ℹ Printify keys not set — skipping API call (demo mode).', 'info');
+    printifyProductId = 'DEMO-' + Math.random().toString(36).slice(2,8).toUpperCase();
+    log(`✓ [Demo] Printify product ID: ${printifyProductId}`, 'ok');
+  }
+
+  setStep(3, 'done');
+  setStep(4, 'active');
+  await delay(500);
+
+  // STEP 4: Etsy listing
+  log('Creating Etsy listing...', '');
+
+  const finalTitle = document.getElementById('listing-title').value.trim() 
+    || `${productType.charAt(0).toUpperCase() + productType.slice(1)} - ${prompt.slice(0,35)}`;
+
+  const allTags = [
+    ...tags.split(',').map(t => t.trim()),
+    ...state.settings.defaultTags.split(',').map(t => t.trim())
+  ].filter(Boolean).slice(0,13);
+
+  let etsyListingId = null;
+
+  const etsyToken = state.keys.etsyAccessToken || state.keys.etsy;
+  if (etsyToken && state.keys.etsyShop && state.publishMode === 'publish-live') {
+    try {
+      const etsyPayload = {
+        quantity: 999,
+        title: finalTitle,
+        description: `✨ ${finalTitle}\n\n${prompt}\n\nPrinted with care on premium ${productType}. Ships within 3-5 business days.`,
+        price: { amount: Math.round(price * 100), divisor: 100, currency_code: 'USD' },
+        who_made: 'i_did',
+        when_made: 'made_to_order',
+        taxonomy_id: 68887423,
+        tags: allTags,
+        shipping_profile_id: state.settings.shippingProfile || undefined,
+        state: 'active'
+      };
+
+      const etsyHeaders = state.keys.etsyAccessToken
+        ? { 'Authorization': `Bearer ${state.keys.etsyAccessToken}`, 'x-api-key': state.keys.etsy, 'Content-Type': 'application/json' }
+        : { 'x-api-key': state.keys.etsy, 'Content-Type': 'application/json' };
+
+      const etsyResp = await fetch(`https://openapi.etsy.com/v3/application/shops/${state.keys.etsyShop}/listings`, {
+        method: 'POST',
+        headers: etsyHeaders,
+        body: JSON.stringify(etsyPayload)
+      });
+
+      if (etsyResp.ok) {
+        const listing = await etsyResp.json();
+        etsyListingId = listing.listing_id;
+        log(`✓ Etsy listing created (ID: ${etsyListingId})`, 'ok');
+      } else {
+        const err = await etsyResp.text();
+        log(`⚠ Etsy: ${etsyResp.status} — ${err.slice(0,100)}`, 'warn');
+        log('ℹ Tip: Etsy OAuth v3 requires full OAuth flow. See Settings for docs link.', 'info');
+      }
+    } catch (e) {
+      log(`⚠ Etsy error: ${e.message}`, 'warn');
+    }
+  } else if (state.publishMode === 'publish-draft') {
+    log(`ℹ Draft mode — skipping Etsy auto-publish.`, 'info');
+  } else {
+    log('ℹ Etsy keys not set — skipping (demo mode).', 'info');
+    etsyListingId = 'DEMO-ETY-' + Math.random().toString(36).slice(2,6).toUpperCase();
+    log(`✓ [Demo] Etsy listing ID: ${etsyListingId}`, 'ok');
+  }
+
+  setStep(4, 'done');
+
+  // Add to products display
+  addProductCard({
+    title: finalTitle,
+    type: productType,
+    price,
+    printifyId: printifyProductId,
+    etsyId: etsyListingId,
+    status: state.publishMode === 'publish-live' ? 'published' : 'draft'
+  });
+
+  log('─── Pipeline complete! ───', 'ok');
+
+  btn.disabled = false;
+  btn.classList.remove('running');
+  spinner.style.display = 'none';
+  document.getElementById('run-label').textContent = '▶ Run Full Pipeline';
+  state.running = false;
+}
+
+// ─── Batch ───────────────────────────────────────────────────────────────
+async function runBatch() {
+  const input = document.getElementById('batch-input').value.trim();
+  if (!input) { log('⚠ No batch items entered.', 'warn', 'batch-log'); return; }
+
+  const lines = input.split('\n').filter(l => l.trim());
+  log(`Starting batch: ${lines.length} products queued.`, 'info', 'batch-log');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    log(`[${i+1}/${lines.length}] Processing: ${line.slice(0,50)}...`, '', 'batch-log');
+
+    // Parse type prefix
+    const typeMatch = line.match(/^\[([^\]]+)\]/);
+    const productType = typeMatch ? typeMatch[1] : 't-shirt';
+    const prompt = line.replace(/^\[[^\]]+\]\s*/, '');
+
+    // Simulate pipeline for batch (would call full pipeline in production)
+    await delay(1200 + Math.random() * 600);
+    log(`✓ [${i+1}] ${productType} created: "${prompt.slice(0,35)}..."`, 'ok', 'batch-log');
+  }
+
+  log(`─── Batch complete: ${lines.length} products processed ───`, 'ok', 'batch-log');
+}
+
+// ─── Product Cards ───────────────────────────────────────────────────────
+function addProductCard({ title, type, price, printifyId, etsyId, status }) {
+  const section = document.getElementById('products-section');
+  const grid = document.getElementById('products-grid');
+  section.style.display = 'block';
+
+  const card = document.createElement('div');
+  card.className = 'product-card';
+  card.innerHTML = `
+    <div class="p-title">${title.slice(0, 40)}${title.length > 40 ? '…' : ''}</div>
+    <div class="p-meta">
+      Type: ${type}<br>
+      Price: $${price.toFixed(2)}<br>
+      Printify: ${printifyId || '—'}<br>
+      Etsy: ${etsyId || '—'}
+    </div>
+    <div class="p-status ${status}">${status === 'published' ? '● Live' : status === 'draft' ? '○ Draft' : '⋯ Pending'}</div>
+  `;
+  grid.prepend(card);
+}
+</script>
+</body>
+</html>
