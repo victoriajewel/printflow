@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrintFlow — Etsy Authorization</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #2a2a3a;
+    --accent: #ff6b35;
+    --accent2: #7c3aed;
+    --green: #22c55e;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .card {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 3rem 2.5rem;
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 2rem;
+    letter-spacing: -0.02em;
+  }
+  .logo span { color: var(--accent); }
+
+  .icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+  }
+
+  .token-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1.5rem 0;
+    text-align: left;
+  }
+
+  .token-label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+  }
+
+  .token-value {
+    font-size: 0.72rem;
+    color: var(--text);
+    word-break: break-all;
+    line-height: 1.5;
+  }
+
+  .token-value.success { color: var(--green); }
+  .token-value.error { color: #ef4444; }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.65rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .copy-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,107,53,0.3); }
+  .copy-btn:active { transform: translateY(0); }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.68rem;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    margin-bottom: 1.5rem;
+  }
+
+  .status-badge.ok {
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--green);
+  }
+
+  .status-badge.err {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: #ef4444;
+  }
+
+  .status-badge.loading {
+    background: rgba(124,58,237,0.1);
+    border: 1px solid rgba(124,58,237,0.3);
+    color: #a78bfa;
+  }
+
+  .steps {
+    text-align: left;
+    margin-top: 1.5rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 2;
+    border-top: 1px solid var(--border);
+    padding-top: 1.5rem;
+  }
+
+  .steps strong { color: var(--text); }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    width: 12px; height: 12px;
+    border: 2px solid rgba(167,139,250,0.3);
+    border-top-color: #a78bfa;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Print<span>Flow</span></div>
+
+  <div id="loading-state">
+    <span class="icon">⏳</span>
+    <h1>Connecting to Etsy...</h1>
+    <div class="status-badge loading"><span class="spinner"></span> Processing authorization</div>
+    <p>Please wait while we exchange your authorization code for an access token.</p>
+  </div>
+
+  <div id="success-state" style="display:none">
+    <span class="icon">✅</span>
+    <h1>Etsy Connected!</h1>
+    <div class="status-badge ok">● Authorization successful</div>
+    <p>Your Etsy access token has been generated. Copy it below and paste it into PrintFlow to activate auto-listing.</p>
+
+    <div class="token-box">
+      <div class="token-label">Access Token</div>
+      <div class="token-value success" id="access-token-display">—</div>
+    </div>
+
+    <div class="token-box">
+      <div class="token-label">Refresh Token (save this too)</div>
+      <div class="token-value" id="refresh-token-display">—</div>
+    </div>
+
+    <button class="copy-btn" onclick="copyTokens()">
+      📋 Copy Tokens to Clipboard
+    </button>
+
+    <div class="steps">
+      <strong>Next steps:</strong><br>
+      1. Copy the Access Token above<br>
+      2. Go back to PrintFlow<br>
+      3. Paste it into the <strong>Etsy API Key</strong> field<br>
+      4. Click <strong>Save & Continue</strong> — you're live! 🚀
+    </div>
+  </div>
+
+  <div id="error-state" style="display:none">
+    <span class="icon">❌</span>
+    <h1>Authorization Failed</h1>
+    <div class="status-badge err">● Error occurred</div>
+    <div class="token-box">
+      <div class="token-label">Error Details</div>
+      <div class="token-value error" id="error-display">Unknown error</div>
+    </div>
+    <p>Try clicking the Etsy connect button in PrintFlow again. If the problem persists, make sure your API key and redirect URI are set correctly in your Etsy app settings.</p>
+  </div>
+</div>
+
+<script>
+(async function() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const error = params.get('error');
+  const state = params.get('state');
+
+  // Check for errors from Etsy
+  if (error) {
+    showError(`Etsy returned error: ${error} — ${params.get('error_description') || 'No description'}`);
+    return;
+  }
+
+  if (!code) {
+    showError('No authorization code received. Make sure you arrived here from the Etsy login page.');
+    return;
+  }
+
+  // Retrieve stored PKCE verifier and app key
+  const codeVerifier = sessionStorage.getItem('etsy_code_verifier');
+  const apiKey = sessionStorage.getItem('etsy_api_key');
+  const redirectUri = window.location.origin + window.location.pathname;
+
+  if (!codeVerifier || !apiKey) {
+    // Show manual instructions if session data is missing
+    showManualInstructions(code);
+    return;
+  }
+
+  // Exchange code for token
+  try {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: apiKey,
+      redirect_uri: redirectUri,
+      code: code,
+      code_verifier: codeVerifier
+    });
+
+    const resp = await fetch('https://api.etsy.com/v3/public/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    });
+
+    const data = await resp.json();
+
+    if (data.access_token) {
+      // Store in sessionStorage for PrintFlow to read
+      sessionStorage.setItem('etsy_access_token', data.access_token);
+      sessionStorage.setItem('etsy_refresh_token', data.refresh_token || '');
+
+      document.getElementById('access-token-display').textContent = data.access_token;
+      document.getElementById('refresh-token-display').textContent = data.refresh_token || '(none returned)';
+
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('success-state').style.display = 'block';
+
+      // Try to auto-close and return to PrintFlow if opened as popup
+      if (window.opener) {
+        window.opener.postMessage({
+          type: 'etsy_oauth_success',
+          access_token: data.access_token,
+          refresh_token: data.refresh_token
+        }, '*');
+        setTimeout(() => window.close(), 3000);
+      }
+    } else {
+      showError(JSON.stringify(data));
+    }
+  } catch (e) {
+    showError(e.message);
+  }
+})();
+
+function showError(msg) {
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('error-display').textContent = msg;
+  document.getElementById('error-state').style.display = 'block';
+}
+
+function showManualInstructions(code) {
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('access-token-display').textContent = 
+    'Session expired — please restart the OAuth flow from PrintFlow. Your auth code was: ' + code;
+  document.getElementById('refresh-token-display').textContent = '—';
+  document.getElementById('success-state').style.display = 'block';
+}
+
+function copyTokens() {
+  const access = document.getElementById('access-token-display').textContent;
+  const refresh = document.getElementById('refresh-token-display').textContent;
+  const text = `ACCESS TOKEN:\n${access}\n\nREFRESH TOKEN:\n${refresh}`;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.innerHTML = '📋 Copy Tokens to Clipboard', 2000);
+  });
+}
+</script>
+</body>
+</html>
