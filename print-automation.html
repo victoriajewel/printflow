@@ -562,7 +562,11 @@
         </div>
         <div class="key-item">
           <label>Printify Shop ID</label>
-          <input type="text" id="printify-shop-key" placeholder="From Printify dashboard URL" />
+          <div style="display:flex; gap:0.4rem;">
+            <input type="text" id="printify-shop-key" placeholder="Click Find to auto-fetch" style="flex:1; min-width:0;" />
+            <button class="btn btn-ghost" onclick="fetchPrintifyShop()" style="padding:0.45rem 0.7rem; white-space:nowrap; flex-shrink:0;">🔍 Find</button>
+          </div>
+          <div id="shop-fetch-status" style="font-size:0.65rem; color:var(--muted); margin-top:0.3rem;"></div>
         </div>
       </div>
     </div>
@@ -863,7 +867,54 @@ function saveKeys() {
   if (state.keys.etsy) log('✓ Etsy key loaded — click "Connect Etsy via OAuth" to authorize.', 'info');
 }
 
-// ─── Etsy OAuth PKCE Flow ─────────────────────────────────────────────────
+async function fetchPrintifyShop() {
+  const key = document.getElementById('printify-key').value.trim();
+  const statusEl = document.getElementById('shop-fetch-status');
+
+  if (!key) {
+    statusEl.textContent = '⚠ Paste your Printify API key first';
+    statusEl.style.color = '#f59e0b';
+    return;
+  }
+
+  statusEl.textContent = '⏳ Fetching your shop...';
+  statusEl.style.color = '#a78bfa';
+
+  try {
+    const resp = await fetch('https://api.printify.com/v1/shops.json', {
+      headers: { 'Authorization': `Bearer ${key}` }
+    });
+
+    if (resp.ok) {
+      const shops = await resp.json();
+      if (shops.length === 0) {
+        statusEl.textContent = '⚠ No shops found on this account.';
+        statusEl.style.color = '#f59e0b';
+        return;
+      }
+      // Auto-fill first shop
+      const shop = shops[0];
+      document.getElementById('printify-shop-key').value = shop.id;
+      state.keys.printifyShop = String(shop.id);
+      statusEl.textContent = `✓ Found: "${shop.title}" (ID: ${shop.id})`;
+      statusEl.style.color = 'var(--green)';
+      document.getElementById('printify-dot').className = 'status-dot live';
+      log(`✓ Printify shop found: "${shop.title}" — ID ${shop.id}`, 'ok');
+
+      // If multiple shops, show them all
+      if (shops.length > 1) {
+        statusEl.textContent += ` — ${shops.length} shops found, using first.`;
+      }
+    } else {
+      statusEl.textContent = `✗ Error ${resp.status} — check your API key.`;
+      statusEl.style.color = '#ef4444';
+    }
+  } catch (e) {
+    statusEl.textContent = `✗ ${e.message}`;
+    statusEl.style.color = '#ef4444';
+  }
+}
+
 async function connectEtsy() {
   const apiKey = document.getElementById('etsy-key').value.trim();
   if (!apiKey) {
